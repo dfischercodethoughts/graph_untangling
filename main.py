@@ -68,12 +68,19 @@ class graph:
 
         if not vertices and not edges and not pointset:
             #default init creates 25 vertices in a line with random coordinates
-            for i in range(25):
-                xs = random.randint(-10, 10)
-                ys = random.randint(-10, 10)
-                self.vertices.append(vertex(chr(i+41),point(xs,ys)))
-            for i in range(24):
-                self.add_edge(edge(self.vertices[i],self.vertices[i+1]))
+            self.create_random_line_graph()
+
+    def create_random_line_graph(self,num_vertices = 25,low_end = -10,high_end = 10):
+        #removes any vertices or edges that already exist
+        self.vertices = []
+        self.edges = []
+        for i in range(num_vertices):
+            xs = random.randint(low_end, high_end)
+            ys = random.randint(low_end, high_end)
+            self.vertices.append(vertex(chr(i + 41), point(xs, ys)))
+        for i in range(num_vertices-1):
+            self.add_edge(edge(self.vertices[i], self.vertices[i + 1]))
+
 
     def add_vertex(self,v):
         self.vertices.append(v)
@@ -98,6 +105,7 @@ class graph:
                 i.location.y = edge.start.location.y
 
     def draw(self):
+        plt.close()
         for e in self.edges:
             e.draw()
         plt.show()
