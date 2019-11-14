@@ -5,7 +5,7 @@ import random
 
 #todo: read/write graphs to/from file
 #todo: read graphs from plantri output
-#todo: function to create linegraph
+#todo: function to create random sequence of swaps
 
 
 class point:
@@ -132,14 +132,18 @@ class graph:
         return self.edges
 
     def swap(self,edge):
+        startx = edge.start.location.x
+        starty = edge.start.location.y
+        endx = edge.end.location.x
+        endy = edge.end.location.y
         #swaps the locations of the vertices at the ends of the edge
         for i in self.vertices:
-            if i.location.x == edge.start.location.x and i.location.y == edge.start.location.y:
-                i.location.x = edge.end.location.x
-                i.location.y = edge.end.lcoation.y
-            if i.location.x == edge.end.location.x and i.location.y == edge.end.location.y:
-                i.location.x = edge.start.location.x
-                i.location.y = edge.start.location.y
+            if i.name == edge.start.name:
+                i.location.x = endx
+                i.location.y = endy
+            if i.name == edge.end.name:
+                i.location.x = startx
+                i.location.y = starty
 
     def draw(self):
         plt.close()
@@ -147,13 +151,11 @@ class graph:
             e.draw()
         plt.show()
 
-    def print(self,file = 'sys.stdout'):
-        #appends
-        if file != 'sys.stdout':
-            fl = open(file,'w')
-            for e in self.edges:
-                print(e,file= fl)
-            fl.close()
+    def print(self,name):
+        #does nothing if name not specified
+        if name != 'sys.stdout':
+            fl = open(name,'w')
+            print(self,file = fl)
 
     def __str__(self):
         returnstr = "Graph: "
@@ -161,8 +163,14 @@ class graph:
             returnstr = returnstr + str(e)
         return returnstr + "\n"
 
-
 if __name__ == "__main__":
     G = graph([],[],[])
+    G.draw()
+    print(G)
+
+    #by creation of G, pointset is sorted by x coordinate
+    #swap any two adjacent vertices so this is not the case
+    print("swapping edge 2: " + str(G.edges[2]))
+    G.swap(G.edges[2])
     G.draw()
     print(G)
