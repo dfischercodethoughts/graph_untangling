@@ -2,6 +2,12 @@ import numpy
 import matplotlib.pyplot as plt
 import random
 
+
+#todo: read/write graphs to/from file
+#todo: read graphs from plantri output
+#todo: function to create random sequence of swaps
+
+
 class point:
     def __init__(self,xcoo,ycoo):
         self.x = xcoo
@@ -15,6 +21,9 @@ class point:
         self.x = newx
     def sety(self,newy):
         self.y = newy
+    def __str__(self):
+        return "{" + str(self.x) + "," + str(self.y) + "}"
+
 
 class vertex:
     color = 'ko'
@@ -30,9 +39,12 @@ class vertex:
         self.name = newname
     def set_location(self,newloc):
         self.location = newloc
-
+    def __str__(self):
+        return "(" + str(self.name) + ":" + str(self.location) + ")"
     def draw(self):
         plt.plot(self.location.get_x(),self.location.get_y(),self.color)
+        plt.text(self.location.get_x()+.1,self.location.get_y()+.1,self.name)
+
 
 class edge:
     def __init__(self,startv,endv,clr='k'):
@@ -52,6 +64,8 @@ class edge:
         self.end = newe
     def set_color(self,newc):
         self.color = newc
+    def __str__(self):
+        return "[" + str(self.start) + "," + str(self.end) + "];"
     def draw(self):
         self.start.draw()
         self.end.draw()
@@ -60,7 +74,19 @@ class edge:
 
 
 class graph:
-    def __init__(self,vertices = [],edges = [], pointset = {}):
+
+    @staticmethod
+    def unique(list):
+        #helper method to ensure unique points in pointset
+        #assume list sorted
+        last = None
+        for item in list:
+            if item == last:
+                continue
+            yield item
+            last = item
+
+    def __init__(self,vertices, edges, pointset):
         self.vertices= vertices
         self.edges = edges
         self.pointset = pointset
@@ -74,13 +100,24 @@ class graph:
         #removes any vertices or edges that already exist
         self.vertices = []
         self.edges = []
-        for i in range(num_vertices):
-            xs = random.randint(low_end, high_end)
-            ys = random.randint(low_end, high_end)
-            self.vertices.append(vertex(chr(i + 41), point(xs, ys)))
-        for i in range(num_vertices-1):
-            self.add_edge(edge(self.vertices[i], self.vertices[i + 1]))
+        self.pointset = self.create_random_pointset(low_end,high_end,num_vertices)
+        count = 0
+        for pt in self.pointset:
+            self.vertices.append(vertex(chr(count + 65), point(pt[0], pt[1])))
+            count =count + 1
 
+        for i in range(num_vertices-1):
+            try:
+                self.add_edge(edge(self.vertices[i], self.vertices[i + 1]))
+            except(IndexError):
+                print("index error... graph:")
+                print(self)
+
+    def create_random_pointset(self,lower_bound,upper_bound,num_points = 25):
+        ps = []
+        for i in range(num_points):
+            ps.append([random.randint(lower_bound, upper_bound),random.randint(lower_bound, upper_bound)])
+        return graph.unique(sorted(ps))
 
     def add_vertex(self,v):
         self.vertices.append(v)
@@ -95,14 +132,18 @@ class graph:
         return self.edges
 
     def swap(self,edge):
+        startx = edge.start.location.x
+        starty = edge.start.location.y
+        endx = edge.end.location.x
+        endy = edge.end.location.y
         #swaps the locations of the vertices at the ends of the edge
         for i in self.vertices:
-            if i.location.x == edge.start.location.x and i.location.y == edge.start.location.y:
-                i.location.x = edge.end.location.x
-                i.location.y = edge.end.lcoation.y
-            if i.location.x == edge.end.location.x and i.location.y == edge.end.location.y:
-                i.location.x = edge.start.location.x
-                i.location.y = edge.start.location.y
+            if i.name == edge.start.name:
+                i.location.x = endx
+                i.location.y = endy
+            if i.name == edge.end.name:
+                i.location.x = startx
+                i.location.y = starty
 
     def draw(self):
         plt.close()
@@ -110,7 +151,26 @@ class graph:
             e.draw()
         plt.show()
 
+    def print(self,name):
+        #does nothing if name not specified
+        if name != 'sys.stdout':
+            fl = open(name,'w')
+            print(self,file = fl)
+
+    def __str__(self):
+        returnstr = "Graph: "
+        for e in self.edges:
+            returnstr = returnstr + str(e)
+        return returnstr + "\n"
 
 if __name__ == "__main__":
-    G = graph()
+    G = graph([],[],[])
     G.draw()
+    print(G)
+
+    #by creation of G, pointset is sorted by x coordinate
+    #swap any two adjacent vertices so this is not the case
+    print("swapping edge 2: " + str(G.edges[2]))
+    G.swap(G.edges[2])
+    G.draw()
+    print(G)
