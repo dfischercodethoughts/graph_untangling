@@ -186,7 +186,7 @@ class Graph:
     def get_edges(self):
         return self.edges
 
-    def swap(self,edge,recompute_cross_num = False):
+    def edge_swap(self, edge, recompute_cross_num = False):
         startx = edge.start.location.x
         starty = edge.start.location.y
         endx = edge.end.location.x
@@ -202,11 +202,31 @@ class Graph:
         if recompute_cross_num:
             self.compute_crossing_number_quad()
 
-    def swap_by_vertex_names(self,vertexa,vertexb):
+    def edge_swap_by_vertex_names(self, vertexa, vertexb,recompute_crossing_num = True):
         for e in self.edges:
             if e.start.name == vertexa and e.end.name == vertexb:
-                self.swap(e)
+                self.edge_swap(e,recompute_crossing_num)
                 return
+
+    def vertex_swap(self,vertexa,vertexb,recompute_cross_num = False):
+        start_point = None
+        end_point = None
+        #swaps vertex and b - finds the vertices by name
+        for v in self.vertices:
+            if v.name == vertexa:
+                start_point = v.location
+            if v.name == vertexb:
+                end_point = v.location
+        if start_point and end_point:
+            for v in self.vertices:
+                if v.name == vertexa:
+                    v.location = end_point
+                if v.name == vertexb:
+                    v.location = start_point
+            if recompute_cross_num:
+                return self.compute_crossing_number_quad()
+        else:
+            return "vertex not found"
 
     def compute_crossing_number_quad(self):#quadratic time implementation
         count = 1
@@ -243,13 +263,16 @@ class Graph:
         self.crossing_number = cross_num
         return cross_num
 
-    def draw(self):
+    def draw(self,save = False):
         plt.close()
         plt.title(self.name)
         leg_str = "crossing number: " + str(self.crossing_number)
-        plt.text(10-len(leg_str),10,leg_str)
+        plt.figtext(0.12,0.85,leg_str)
         for e in self.edges:
             e.draw()
+        if save:
+            plt.savefig(self.name)
+
         plt.show()
 
     def print(self,name):
@@ -338,42 +361,64 @@ class Graph:
         self.crossing_number = self.compute_crossing_number_quad()
         return self
 
-    def test_all_swaps_strict_decreasing_monotonicity(self,debug = False):
+    def test_edge_swaps_nonstrictly_increasing_crossings(self,debug = False,draw=False):
         #returns false if does not find an edge that decreases the number of swaps
         #returns true if all swaps keep the same or larger crossing number
         start_num = self.crossing_number
         for edge in self.edges:
             #try swapping along edge
-            self.swap(edge,True)
+            self.edge_swap(edge, True)
             if debug:
-                input("edge " + edge + " swapped. press enter to continue")
+                input("edge " + str(edge) + " swapped. press enter to continue")
+            if draw:
                 self.draw()
 
             if self.crossing_number < start_num and start_num != 0:
                 return False
             #undo swap
-            self.swap(edge,True)
+            self.edge_swap(edge, True)
 
         return True
 
-    def test_all_swaps_strict_increasing_monotonicity(self,debug=False):
+    def test_edge_swaps_strictly_increasing_crossings(self,debug=False,draw=False):
         #returns true if all swaps increase the number of crossings
         #assumes start crossing is not zero
         start_num = self.crossing_number
         for edge in self.edges:
-            self.swap(edge,True)
-            if (debug):
+            self.edge_swap(edge, True)
+            if (draw):
                 input("performed swap on edge " + str(edge) + ". Press enter to continue.")
+            if draw:
                 self.draw()
 
             if self.crossing_number <= start_num:
                 return False
             #undo swap
-            self.swap(edge)
+            self.edge_swap(edge)
+        return True
+
+    def test_vertex_swaps_strictly_increasing_crossings(self,debug=False,draw=False):
+        #run through all n choose 2 vertex choices, swap them, and compute crossing number
+        start_num = self.crossing_number
+        for i in range(len(self.vertices)):
+            for j in range(len(self.vertices)-i-1):
+                if draw:
+                    self.draw()
+                self.vertex_swap(self.vertices[i].name,self.vertices[i+j+1].name,True)
+                if debug:
+                    print("swapped vertex " + self.vertices[i].name + " and " + self.vertices[i+j+1].name)
+                if draw:
+                    self.draw()
+                if self.crossing_number <= start_num:
+                    return False
+
+
+                #swap back
+                self.vertex_swap(self.vertices[i].name,self.vertices[i+j+1].name,True)
         return True
 
 
-def test_random_swaps(num_graphs,fn,debug=True,integer = True,num_vertices = 25):
+def test_random_swaps(num_graphs,fn,debug=True,draw=True,integer = True,num_vertices = 25,test_to_run = "edge swaps strictly increasing crossing number"):
     #create a bunch of random line graphs
     graphs = []
     if debug:
@@ -396,25 +441,40 @@ def test_random_swaps(num_graphs,fn,debug=True,integer = True,num_vertices = 25)
         while start_crosses == 0 :
             g.randomize_vertex_locations()
             start_crosses=g.crossing_number
+        if test_to_run == "edge swaps strictly increasing crossing number":
+            swap_found_indicator = g.test_edge_swaps_strictly_increasing_crossings(debug,draw)
+        elif test_to_run == "vertex swaps strictly increasing crossing number":
+            swap_found_indicator = g.test_vertex_swaps_strictly_increasing_crossings(debug,draw)
+        elif test_to_run == "edge swaps non strictly increasing crossing number":
+            swap_found_indicator = g.test_edge_swaps_nonstrictly_increasing_crossings(debug, draw)
+        else:
+            swap_found_indicator = g.test_edge_swaps_strictly_increasing_crossings(debug,draw)
 
-        swap_found_indicator = g.try_all_swaps()
-
-        if not swap_found_indicator:
+        if swap_found_indicator:
             if debug:
-                print("graph found for which no swap reduces crossing number")
+                if test_to_run == "edge swaps strictly increasing crossing number":
+                    print("graph found for which all edge swaps strictly increase crossing number")
+                elif test_to_run == "vertex swaps strictly increasing crossing number":
+                    print("graph found for which all vertex swaps strictly increase crossing number")
             result_graphs.append(g)
         if debug:
             print("done.")
         count = count+1
 
     if result_graphs:
-        print("graph found with no swaps that reduce crossing number!")
+        if test_to_run == "edge swaps strictly increasing crossing number":
+            print("graph found for which all edge swaps strictly increase crossing number")
+        elif test_to_run == "vertex swaps strictly increasing crossing number":
+            print("graph found for which all vertex swaps strictly increase crossing number")
         if debug:
             print(str(result_graphs))
         for g in result_graphs:
             g.save_to_file(fn)
     elif debug:
-        print("no graph found such that no swap can reduce crossing number")
+        if test_to_run == "edge swap strictly increasing crossing number":
+            print("no graph found for which all edge swaps strictly increase crossing number")
+        elif test_to_run == "vertex swap strictly increasing crossing number":
+            print("no graph found for which all vertex swaps strictly increase crossing number")
 
     return result_graphs
 
@@ -433,18 +493,57 @@ def load_all_graphs_from_file_and_draw(filename):
         input("press enter for next graph")
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     #load_all_graphs_from_file_and_draw("test")
 
     #create a random sampling of graphs
-    uncrossable = test_random_swaps(1000,"test",integer=False,num_vertices=5)
-    if (uncrossable):
-        print("Graphs found for which there is no swap to decrease the number of crossings.")
-        for g in uncrossable:
-            print(str(g))
-            g.draw()
-            input("press enter for next graph")
-    else:
-        print("no graphs discovered.")
+    # uncrossable = test_random_swaps(10000,"test",debug=False,draw=False,integer=False,num_vertices=5,test_to_run="edge swaps strictly increasing crossing number")
+    # if (uncrossable):
+    #     print("Graphs found for which there is no swap to decrease the number of crossings.")
+    #     for g in uncrossable:
+    #         print(str(g))
+    #         g.draw()
+    #         input("press enter for next graph")
+    # else:
+    #     print("no graphs discovered.")
 
 
+    # g = Graph([Vertex("A",Point(5,5)),Vertex("B",Point(-5,-3)),Vertex("C",Point(-5.5,-6)),Vertex("D",Point(-3,-6)),Vertex("E",Point(-3,-4)),Vertex("F",Point(-5,5)),Vertex("G",Point(-6,6)),Vertex("H",Point(-7,5)),Vertex("I",Point(-6,3)),Vertex("J",Point(5,3)),Vertex("Start",Point(7,7)),Vertex("End",Point(7,2))],[],[],"test")
+    # g.add_edge_by_vname("Start","A")
+    # g.add_edge_by_vname("A", "B")
+    # g.add_edge_by_vname("B", "C")
+    # g.add_edge_by_vname("C","D")
+    # g.add_edge_by_vname("D", "E")
+    # g.add_edge_by_vname("E", "F")
+    # g.add_edge_by_vname("F", "G")
+    # g.add_edge_by_vname("G", "H")
+    # g.add_edge_by_vname("H", "I")
+    # g.add_edge_by_vname("I","J")
+    # g.add_edge_by_vname("End", "J")
+    # g.compute_crossing_number_quad()
+    # g.draw()
+    #
+    # g.vertex_swap("A","E")
+    # g.compute_crossing_number_quad()
+    # g.draw()
+
+    # if g.test_vertex_swaps_strictly_increasing_crossings(True,True):
+    #     print("true")
+    # else:
+    #     print("false")
+
+
+    # h = Graph([],[],[],"path edge swap counter ex")
+    # f = open("test")
+    # lines = f.readlines()
+    # h.import_from_string(lines[0])
+    # h.draw()
+    # h.test_edge_swaps_strictly_increasing_crossings(debug=False,draw=True)
+    #
+    # test = Graph([],[],[],"Swapping Along Path")
+    # #test.import_from_string("graph001 [(A:{0.925102539854235_-6.4913894645684}),(B:{5.0744512190386555_0.07406038703589068})];[(B:{5.0744512190386555_0.07406038703589068}),(C:{-0.8098839793382488_2.885357906603561})];[(C:{-0.8098839793382488_2.885357906603561}),(D:{-8.014684207276694_-1.062338745843423})];[(D:{-8.014684207276694_-1.062338745843423}),(E:{4.338677299678215_-4.2107695421734554})];")
+    # test.create_random_line_graph(5,-5,5,False)
+    # test.randomize_vertex_locations()
+    # test.compute_crossing_number_quad()
+    # test.draw()
+    #test.test_edge_swaps_strictly_increasing_crossings(True,True)
